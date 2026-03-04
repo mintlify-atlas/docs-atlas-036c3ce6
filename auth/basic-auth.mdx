@@ -1,0 +1,443 @@
+---
+title: Basic authentication
+description: Detailed guide on implementing HTTP Basic Authentication for the API
+---
+
+# Basic Authentication
+
+This guide provides a detailed walkthrough of implementing HTTP Basic Authentication to access protected endpoints in the Sistema de Gestión de Propiedades API.
+
+## What is Basic Authentication?
+
+HTTP Basic Authentication is a simple authentication mechanism where credentials are sent in the `Authorization` header as a base64-encoded string. The format is:
+
+```
+Authorization: Basic <base64(username:password)>
+```
+
+<Info>
+Basic Auth is standardized in [RFC 7617](https://tools.ietf.org/html/rfc7617) and widely supported by HTTP clients and libraries.
+</Info>
+
+## Encoding Credentials
+
+### Manual Encoding
+
+<Steps>
+  <Step title="Concatenate with colon">
+    Combine your username and password with a colon separator:
+    ```
+    admin:mysecretpass
+    ```
+  </Step>
+  <Step title="Base64 encode">
+    Encode the string using base64:
+    ```
+    YWRtaW46bXlzZWNyZXRwYXNz
+    ```
+  </Step>
+  <Step title="Add prefix">
+    Prepend "Basic " to the encoded string:
+    ```
+    Basic YWRtaW46bXlzZWNyZXRwYXNz
+    ```
+  </Step>
+</Steps>
+
+### Using Command Line
+
+```bash
+# On Linux/Mac
+echo -n 'username:password' | base64
+
+# Example output
+YWRtaW46cGFzc3dvcmQ=
+```
+
+<Note>
+The `-n` flag is important - it prevents adding a newline character which would make the encoding invalid.
+</Note>
+
+## Implementation Examples
+
+### curl
+
+<Tabs>
+  <Tab title="Using -u flag (Recommended)">
+    ```bash
+    curl -u admin:password \
+      -X POST \
+      -H "Content-Type: application/json" \
+      -d '{"ciudad": "Buenos Aires", ...}' \
+      https://idforideas-1.jamrdev.com.ar/api/propiedades
+    ```
+    
+    The `-u` flag automatically handles base64 encoding.
+  </Tab>
+  <Tab title="Manual header">
+    ```bash
+    curl -H "Authorization: Basic $(echo -n 'admin:password' | base64)" \
+      -X POST \
+      -H "Content-Type: application/json" \
+      -d '{"ciudad": "Buenos Aires", ...}' \
+      https://idforideas-1.jamrdev.com.ar/api/propiedades
+    ```
+  </Tab>
+  <Tab title="Pre-encoded">
+    ```bash
+    curl -H "Authorization: Basic YWRtaW46cGFzc3dvcmQ=" \
+      -X POST \
+      -H "Content-Type: application/json" \
+      -d '{"ciudad": "Buenos Aires", ...}' \
+      https://idforideas-1.jamrdev.com.ar/api/propiedades
+    ```
+  </Tab>
+</Tabs>
+
+### JavaScript/TypeScript
+
+<Tabs>
+  <Tab title="Browser (btoa)">
+    ```javascript
+    // btoa is available in browsers
+    const username = 'admin';
+    const password = 'password';
+    const credentials = btoa(`${username}:${password}`);
+
+    const response = await fetch(
+      'https://idforideas-1.jamrdev.com.ar/api/propiedades',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          pais: 'Argentina',
+          ciudad: 'Buenos Aires',
+          direccion: 'Av. Corrientes 1234',
+          ambientes: 2,
+          metros_cuadrados: 65,
+          precio: 95000,
+          tipo_contratacion: 'Alquiler',
+          estado: 'Disponible'
+        })
+      }
+    );
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log('Property created:', data);
+    } else if (response.status === 401) {
+      console.error('Authentication failed');
+    }
+    ```
+  </Tab>
+  <Tab title="Node.js (Buffer)">
+    ```javascript
+    // Node.js uses Buffer for encoding
+    const username = 'admin';
+    const password = 'password';
+    const credentials = Buffer.from(`${username}:${password}`).toString('base64');
+
+    const response = await fetch(
+      'https://idforideas-1.jamrdev.com.ar/api/propiedades',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ /* property data */ })
+      }
+    );
+    ```
+  </Tab>
+  <Tab title="Reusable Helper">
+    ```typescript
+    class PropertyAPIClient {
+      private credentials: string;
+      private baseURL = 'https://idforideas-1.jamrdev.com.ar';
+
+      constructor(username: string, password: string) {
+        // Works in both browser and Node.js
+        this.credentials = typeof btoa !== 'undefined'
+          ? btoa(`${username}:${password}`)
+          : Buffer.from(`${username}:${password}`).toString('base64');
+      }
+
+      private getHeaders() {
+        return {
+          'Authorization': `Basic ${this.credentials}`,
+          'Content-Type': 'application/json'
+        };
+      }
+
+      async createProperty(data: PropertyData) {
+        const response = await fetch(`${this.baseURL}/api/propiedades`, {
+          method: 'POST',
+          headers: this.getHeaders(),
+          body: JSON.stringify(data)
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        return response.json();
+      }
+
+      async verifyAuth() {
+        const response = await fetch(`${this.baseURL}/api/auth/verify`, {
+          headers: this.getHeaders()
+        });
+        return response.ok;
+      }
+    }
+
+    // Usage
+    const client = new PropertyAPIClient('admin', 'password');
+    
+    // Verify credentials first
+    if (await client.verifyAuth()) {
+      const result = await client.createProperty({ /* data */ });
+      console.log('Created:', result);
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### Python
+
+<Tabs>
+  <Tab title="Using requests.auth">
+    ```python
+    import requests
+    from requests.auth import HTTPBasicAuth
+
+    # Recommended: Let requests handle encoding
+    response = requests.post(
+        'https://idforideas-1.jamrdev.com.ar/api/propiedades',
+        auth=HTTPBasicAuth('admin', 'password'),
+        json={
+            'pais': 'Argentina',
+            'ciudad': 'Buenos Aires',
+            'direccion': 'Av. Corrientes 1234',
+            'ambientes': 2,
+            'metros_cuadrados': 65,
+            'precio': 95000,
+            'tipo_contratacion': 'Alquiler',
+            'estado': 'Disponible'
+        }
+    )
+
+    if response.status_code == 201:
+        print('Property created:', response.json())
+    elif response.status_code == 401:
+        print('Authentication failed')
+    ```
+  </Tab>
+  <Tab title="Manual header">
+    ```python
+    import requests
+    import base64
+
+    # Manual encoding
+    credentials = base64.b64encode(b'admin:password').decode('utf-8')
+    
+    response = requests.post(
+        'https://idforideas-1.jamrdev.com.ar/api/propiedades',
+        headers={
+            'Authorization': f'Basic {credentials}',
+            'Content-Type': 'application/json'
+        },
+        json={ # property data }
+    )
+    ```
+  </Tab>
+  <Tab title="Reusable Client">
+    ```python
+    import requests
+    from requests.auth import HTTPBasicAuth
+    from typing import Dict, Any
+
+    class PropertyAPIClient:
+        def __init__(self, username: str, password: str):
+            self.base_url = 'https://idforideas-1.jamrdev.com.ar'
+            self.auth = HTTPBasicAuth(username, password)
+        
+        def verify_auth(self) -> bool:
+            """Verify credentials are valid"""
+            response = requests.get(
+                f'{self.base_url}/api/auth/verify',
+                auth=self.auth
+            )
+            return response.status_code == 200
+        
+        def create_property(self, data: Dict[str, Any]) -> Dict[str, Any]:
+            """Create a new property"""
+            response = requests.post(
+                f'{self.base_url}/api/propiedades',
+                auth=self.auth,
+                json=data
+            )
+            response.raise_for_status()
+            return response.json()
+    
+    # Usage
+    client = PropertyAPIClient('admin', 'password')
+    
+    if client.verify_auth():
+        result = client.create_property({ # data })
+        print(f"Created property: {result['id']}")
+    ```
+  </Tab>
+</Tabs>
+
+## Verifying Credentials
+
+Always verify credentials before using them in your application:
+
+```bash
+curl -u admin:password \
+  https://idforideas-1.jamrdev.com.ar/api/auth/verify
+```
+
+**Success (200 OK):**
+```json
+{
+  "authenticated": true,
+  "user": "admin"
+}
+```
+
+**Failure (401 Unauthorized):**
+```json
+{
+  "error": "Unauthorized"
+}
+```
+
+<Tip>
+Verify credentials during application startup or before storing them in configuration. This prevents runtime authentication failures.
+</Tip>
+
+## Common Issues
+
+<Accordion title="401 Unauthorized despite correct credentials">
+  **Possible causes:**
+  - Extra whitespace in username or password
+  - Newline character in base64 encoding (use `-n` flag with echo)
+  - Wrong environment variables configured on server
+  - Case sensitivity in credentials
+  
+  **Solution:**
+  ```bash
+  # Verify your encoding is correct
+  echo -n 'admin:password' | base64
+  # Should output: YWRtaW46cGFzc3dvcmQ=
+  ```
+</Accordion>
+
+<Accordion title="CORS error when sending Authorization header">
+  **Cause:** The API has CORS enabled, but some browsers show CORS errors when auth fails.
+  
+  **Solution:** First verify credentials work with curl, then debug frontend code:
+  ```bash
+  curl -v -u admin:password https://idforideas-1.jamrdev.com.ar/api/auth/verify
+  ```
+</Accordion>
+
+<Accordion title="btoa is not defined (Node.js)">
+  **Cause:** `btoa` is a browser API, not available in Node.js.
+  
+  **Solution:** Use Buffer instead:
+  ```javascript
+  const credentials = Buffer.from('admin:password').toString('base64');
+  ```
+</Accordion>
+
+## Security Considerations
+
+<Warning>
+**Never send credentials over HTTP.** Basic Auth credentials are only base64-encoded, not encrypted. Always use HTTPS.
+</Warning>
+
+### Best Practices
+
+1. **Use Environment Variables**
+   ```javascript
+   const username = process.env.API_USERNAME;
+   const password = process.env.API_PASSWORD;
+   ```
+
+2. **Don't Log Credentials**
+   ```javascript
+   // Bad
+   console.log(`Authenticating as ${username}:${password}`);
+   
+   // Good
+   console.log(`Authenticating as ${username}`);
+   ```
+
+3. **Validate Input**
+   ```javascript
+   if (!username || !password) {
+     throw new Error('Credentials not configured');
+   }
+   ```
+
+4. **Handle Auth Errors**
+   ```javascript
+   if (response.status === 401) {
+     // Don't retry immediately - credentials are likely wrong
+     throw new Error('Authentication failed: Invalid credentials');
+   }
+   ```
+
+## Testing Authentication
+
+Test your authentication implementation:
+
+<Steps>
+  <Step title="Test valid credentials">
+    ```bash
+    curl -u admin:correctpassword \
+      https://idforideas-1.jamrdev.com.ar/api/auth/verify
+    # Should return 200 OK
+    ```
+  </Step>
+  <Step title="Test invalid credentials">
+    ```bash
+    curl -u admin:wrongpassword \
+      https://idforideas-1.jamrdev.com.ar/api/auth/verify
+    # Should return 401 Unauthorized
+    ```
+  </Step>
+  <Step title="Test missing credentials">
+    ```bash
+    curl https://idforideas-1.jamrdev.com.ar/api/propiedades \
+      -X POST \
+      -H "Content-Type: application/json" \
+      -d '{"ciudad": "Test"}'
+    # Should return 401 Unauthorized
+    ```
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Creating Properties" icon="plus" href="/guides/creating-properties">
+    Use authentication to create properties
+  </Card>
+  <Card title="Environment Variables" icon="gear" href="/deployment/environment-variables">
+    Configure credentials for deployment
+  </Card>
+  <Card title="Error Handling" icon="triangle-exclamation" href="/guides/error-handling">
+    Handle authentication errors gracefully
+  </Card>
+  <Card title="Verify Endpoint" icon="check" href="/api/verify-auth">
+    API reference for credential verification
+  </Card>
+</CardGroup>

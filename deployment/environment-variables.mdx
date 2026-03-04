@@ -1,0 +1,423 @@
+---
+title: Environment variables
+description: Configure environment variables and secrets for the API
+---
+
+# Environment Variables
+
+The Sistema de Gestión de Propiedades API uses environment variables to configure authentication credentials and other settings.
+
+## Required Variables
+
+The API requires these environment variables:
+
+| Variable | Purpose | Example |
+|----------|---------|----------|
+| `ADMIN_USER` | Administrator username for Basic Auth | `admin` |
+| `ADMIN_PASS` | Administrator password for Basic Auth | `secretpassword123` |
+| `DB` | D1 database binding (auto-configured) | - |
+
+## Authentication Variables
+
+### ADMIN_USER
+
+The username for HTTP Basic Authentication on protected endpoints.
+
+**Used by:** `Backend/src/middlewares/auth.ts:7`
+
+```typescript
+export const adminAuthMiddleware = async (c: Context, next: Next) => {
+  const auth = basicAuth({
+    username: c.env.ADMIN_USER,  // <-- Environment variable
+    password: c.env.ADMIN_PASS,
+  })
+  
+  return auth(c, next)
+}
+```
+
+**Protected endpoints:**
+- `POST /api/propiedades` - Create property
+- `PATCH /api/propiedades/{id}` - Update property
+- `DELETE /api/propiedades/{id}` - Delete property
+
+### ADMIN_PASS
+
+The password for HTTP Basic Authentication.
+
+**Security notes:**
+- Never commit this to version control
+- Use a strong, unique password
+- Rotate regularly
+- Store as a Wrangler secret (encrypted)
+
+## Setting Variables
+
+### Local Development
+
+For local development with `wrangler dev`, create a `.dev.vars` file:
+
+```bash
+# .dev.vars
+ADMIN_USER=admin
+ADMIN_PASS=dev-password-123
+```
+
+<Warning>
+Add `.dev.vars` to your `.gitignore` to prevent committing credentials.
+</Warning>
+
+**.gitignore:**
+```
+.dev.vars
+wrangler.toml
+```
+
+### Production (Wrangler Secrets)
+
+For production, use Wrangler secrets (encrypted and never visible):
+
+<Steps>
+  <Step title="Set ADMIN_USER secret">
+    ```bash
+    wrangler secret put ADMIN_USER
+    ```
+    
+    When prompted, enter your admin username:
+    ```
+    Enter a secret value: admin
+    ```
+  </Step>
+  <Step title="Set ADMIN_PASS secret">
+    ```bash
+    wrangler secret put ADMIN_PASS
+    ```
+    
+    When prompted, enter a strong password:
+    ```
+    Enter a secret value: your-secure-password-here
+    ```
+  </Step>
+  <Step title="Verify secrets are set">
+    ```bash
+    wrangler secret list
+    ```
+    
+    Output:
+    ```
+    [
+      {
+        "name": "ADMIN_USER",
+        "type": "secret_text"
+      },
+      {
+        "name": "ADMIN_PASS",
+        "type": "secret_text"
+      }
+    ]
+    ```
+  </Step>
+</Steps>
+
+<Info>
+Secrets are encrypted and never displayed. You can only overwrite or delete them.
+</Info>
+
+### Alternative: wrangler.toml (Not Recommended)
+
+You can set variables in `wrangler.toml`, but **only use this for non-sensitive values**:
+
+```toml
+# wrangler.toml
+[vars]
+ADMIN_USER = "admin"  # OK for username
+# NEVER put passwords here
+```
+
+<Warning>
+**Never** store passwords in `wrangler.toml`. Always use secrets for sensitive data.
+</Warning>
+
+## Accessing Variables in Code
+
+Variables are accessed through the context's `env` object:
+
+```typescript
+import { Context } from 'hono';
+
+export const someHandler = async (c: Context) => {
+  // Access environment variables
+  const username = c.env.ADMIN_USER;
+  const password = c.env.ADMIN_PASS;
+  
+  // Access D1 database binding
+  const db = c.env.DB;
+  
+  // Use them
+  const result = await db.prepare('SELECT * FROM propiedades').all();
+};
+```
+
+## D1 Database Binding
+
+The `DB` binding is configured in `wrangler.toml`:
+
+```toml
+[[d1_databases]]
+binding = "DB"  # <-- This becomes c.env.DB
+database_name = "propiedades-db"
+database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+```
+
+This binding gives your Worker access to the D1 database:
+
+```typescript
+// Access the database
+const { results } = await c.env.DB.prepare(
+  'SELECT * FROM propiedades'
+).all();
+```
+
+## Environment-Specific Configuration
+
+### Multiple Environments
+
+Configure separate environments for staging and production:
+
+```toml
+# wrangler.toml
+
+# Staging environment
+[env.staging]
+name = "inmobiliaria-api-staging"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "propiedades-staging"
+database_id = "staging-db-id"
+
+# Production environment
+[env.production]
+name = "inmobiliaria-api-production"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "propiedades-production"
+database_id = "production-db-id"
+```
+
+### Set Secrets per Environment
+
+```bash
+# Staging secrets
+wrangler secret put ADMIN_USER --env staging
+wrangler secret put ADMIN_PASS --env staging
+
+# Production secrets
+wrangler secret put ADMIN_USER --env production
+wrangler secret put ADMIN_PASS --env production
+```
+
+### Deploy to Specific Environment
+
+```bash
+# Deploy to staging
+wrangler deploy --env staging
+
+# Deploy to production
+wrangler deploy --env production
+```
+
+## Managing Secrets
+
+### List Secrets
+
+```bash
+wrangler secret list
+```
+
+### Update a Secret
+
+```bash
+wrangler secret put ADMIN_PASS
+# Enter new password
+```
+
+### Delete a Secret
+
+```bash
+wrangler secret delete ADMIN_PASS
+```
+
+<Warning>
+Deleting a secret will cause authentication to fail until you set a new one.
+</Warning>
+
+## Security Best Practices
+
+<Steps>
+  <Step title="Use strong passwords">
+    Generate secure passwords:
+    ```bash
+    # On Linux/Mac
+    openssl rand -base64 32
+    
+    # Example output
+    K7gNU3sdo+OL0wNhqoVWhr3g6s1xYv72ol/pe/Unols=
+    ```
+  </Step>
+  <Step title="Rotate credentials regularly">
+    Update secrets periodically:
+    ```bash
+    wrangler secret put ADMIN_PASS
+    ```
+  </Step>
+  <Step title="Use different credentials per environment">
+    Don't reuse staging credentials in production.
+  </Step>
+  <Step title="Never commit credentials">
+    Add to `.gitignore`:
+    ```
+    .dev.vars
+    wrangler.toml  # If it contains secrets
+    ```
+  </Step>
+  <Step title="Limit access to secrets">
+    Only trusted team members should have access to production secrets.
+  </Step>
+</Steps>
+
+## Verifying Configuration
+
+### Test Locally
+
+<Steps>
+  <Step title="Start dev server">
+    ```bash
+    wrangler dev
+    ```
+  </Step>
+  <Step title="Test authentication">
+    ```bash
+    curl -u admin:dev-password-123 http://localhost:8787/api/auth/verify
+    ```
+    
+    Should return:
+    ```json
+    {
+      "authenticated": true,
+      "user": "admin"
+    }
+    ```
+  </Step>
+</Steps>
+
+### Test Production
+
+<Steps>
+  <Step title="Deploy">
+    ```bash
+    wrangler deploy
+    ```
+  </Step>
+  <Step title="Test authentication">
+    ```bash
+    curl -u admin:your-production-password \
+      https://your-worker.workers.dev/api/auth/verify
+    ```
+  </Step>
+</Steps>
+
+## TypeScript Types
+
+Generate TypeScript types for your environment bindings:
+
+```bash
+npm run cf-typegen
+```
+
+This creates type definitions based on your `wrangler.toml`:
+
+```typescript
+// Generated types
+interface CloudflareBindings {
+  ADMIN_USER: string;
+  ADMIN_PASS: string;
+  DB: D1Database;
+}
+```
+
+## Troubleshooting
+
+<Accordion title="401 Unauthorized after deployment">
+  **Cause:** Secrets not set or incorrect
+  
+  **Solution:**
+  ```bash
+  # Verify secrets are set
+  wrangler secret list
+  
+  # If missing, add them
+  wrangler secret put ADMIN_USER
+  wrangler secret put ADMIN_PASS
+  ```
+</Accordion>
+
+<Accordion title="DB is not defined">
+  **Cause:** D1 binding not configured
+  
+  **Solution:** Check `wrangler.toml`:
+  ```toml
+  [[d1_databases]]
+  binding = "DB"
+  database_name = "propiedades-db"
+  database_id = "your-database-id"
+  ```
+</Accordion>
+
+<Accordion title="Local dev works but production fails">
+  **Cause:** Secrets not set in production
+  
+  **Solution:** `.dev.vars` only works locally. Set secrets for production:
+  ```bash
+  wrangler secret put ADMIN_USER
+  wrangler secret put ADMIN_PASS
+  ```
+</Accordion>
+
+<Accordion title="Can't see secret values">
+  **This is normal.** Secrets are encrypted and never displayed. You can only overwrite them:
+  ```bash
+  wrangler secret put ADMIN_PASS
+  ```
+</Accordion>
+
+## Environment Variable Checklist
+
+Before deploying:
+
+- [ ] `.dev.vars` created for local development
+- [ ] `.dev.vars` added to `.gitignore`
+- [ ] Production secrets set with `wrangler secret put`
+- [ ] D1 database binding configured in `wrangler.toml`
+- [ ] Authentication tested locally with `wrangler dev`
+- [ ] Authentication tested in production after deployment
+- [ ] Strong passwords used for production
+- [ ] Credentials documented securely (password manager)
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Cloudflare Workers" icon="cloud" href="/deployment/cloudflare-workers">
+    Complete deployment guide
+  </Card>
+  <Card title="Database Setup" icon="database" href="/deployment/database-setup">
+    Configure the D1 database
+  </Card>
+  <Card title="Authentication" icon="lock" href="/auth/overview">
+    Learn about the auth system
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Start using the deployed API
+  </Card>
+</CardGroup>

@@ -1,0 +1,154 @@
+---
+title: Create Property
+description: Create a new property in the system (requires authentication)
+---
+
+## POST /api/propiedades
+
+Create a new property in the database. This endpoint requires admin authentication using HTTP Basic Auth.
+
+<Warning>
+  This endpoint requires authentication. Include the `Authorization` header with Basic Auth credentials.
+</Warning>
+
+### Request
+
+<ParamField body="codigo_id" type="string">
+  Optional unique 6-character property identifier. If not provided, one will be automatically generated. Must be exactly 6 characters if provided.
+</ParamField>
+
+<ParamField body="pais" type="string" required>
+  Country where the property is located (e.g., "Argentina")
+</ParamField>
+
+<ParamField body="ciudad" type="string" required>
+  City where the property is located (e.g., "Tigre")
+</ParamField>
+
+<ParamField body="direccion" type="string" required>
+  Street address of the property (e.g., "Av. Cazón 123")
+</ParamField>
+
+<ParamField body="ambientes" type="number" required>
+  Number of rooms in the property
+</ParamField>
+
+<ParamField body="metros_cuadrados" type="number" required>
+  Property size in square meters
+</ParamField>
+
+<ParamField body="precio" type="number" required>
+  Property price in local currency
+</ParamField>
+
+<ParamField body="tipo_contratacion" type="enum" required>
+  Type of contract. Must be one of: `Alquiler` (Rent) or `Venta` (Sale)
+</ParamField>
+
+<ParamField body="estado" type="enum" required>
+  Current status of the property. Must be one of: `Disponible` (Available), `Reservado` (Reserved), `Alquilado` (Rented), `Vendido` (Sold)
+</ParamField>
+
+<ParamField body="descripcion" type="string">
+  Optional description or additional details about the property
+</ParamField>
+
+### Example Request
+
+```bash
+curl -X POST https://idforideas-1.jamrdev.com.ar/api/propiedades \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Basic <base64-credentials>" \
+  -d '{
+    "pais": "Argentina",
+    "ciudad": "Tigre",
+    "direccion": "Av. Cazón 123",
+    "ambientes": 3,
+    "metros_cuadrados": 75.5,
+    "precio": 120000,
+    "tipo_contratacion": "Venta",
+    "estado": "Disponible",
+    "descripcion": "Hermosa vista al río"
+  }'
+```
+
+### Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates whether the operation was successful
+</ResponseField>
+
+<ResponseField name="message" type="string" required>
+  Human-readable message describing the result
+</ResponseField>
+
+<ResponseField name="id" type="string">
+  The unique identifier assigned to the newly created property (returned on success)
+</ResponseField>
+
+<ResponseField name="error" type="string">
+  Error message describing what went wrong (returned on failure)
+</ResponseField>
+
+### Example Response
+
+**Success (201)**
+
+```json
+{
+  "success": true,
+  "message": "Propiedad creada correctamente",
+  "id": "ZN1001"
+}
+```
+
+**Validation Error (400)**
+
+```json
+{
+  "success": false,
+  "error": "Invalid tipo_contratacion. Expected 'Alquiler' or 'Venta'"
+}
+```
+
+**Conflict (409)**
+
+```json
+{
+  "success": false,
+  "error": "El código ZN1001 ya existe."
+}
+```
+
+**Unauthorized (401)**
+
+```json
+{
+  "error": "Unauthorized"
+}
+```
+
+### Status Codes
+
+<ResponseField name="201" type="Created">
+  Property created successfully
+</ResponseField>
+
+<ResponseField name="400" type="Bad Request">
+  Invalid data or validation error in request body
+</ResponseField>
+
+<ResponseField name="401" type="Unauthorized">
+  Authentication required or credentials invalid
+</ResponseField>
+
+<ResponseField name="409" type="Conflict">
+  Property with the specified codigo_id already exists
+</ResponseField>
+
+## Notes
+
+- If `codigo_id` is not provided, the system will automatically generate a unique 6-character code using alphanumeric characters (excluding O, 0, I, L for clarity)
+- If a custom `codigo_id` is provided and already exists, the request will fail with a 409 Conflict error
+- The system will attempt up to 5 times to generate a unique ID if collisions occur (extremely rare)
+- All required fields must be provided and pass validation according to the property schema

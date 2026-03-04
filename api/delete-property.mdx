@@ -1,0 +1,77 @@
+---
+title: Delete Property
+description: Delete a property from the system (requires authentication)
+---
+
+## DELETE /api/propiedades/{id}
+
+Permanently delete a property from the database. This action cannot be undone. This endpoint requires admin authentication using HTTP Basic Auth.
+
+<Warning>
+  This endpoint requires authentication. Include the `Authorization` header with Basic Auth credentials.
+</Warning>
+
+<Warning>
+  This operation is **irreversible**. Once a property is deleted, it cannot be recovered.
+</Warning>
+
+### Request
+
+<ParamField path="id" type="string" required>
+  The unique 6-character property identifier of the property to delete (e.g., "ZN1001")
+</ParamField>
+
+```bash
+curl -X DELETE https://idforideas-1.jamrdev.com.ar/api/propiedades/ZN1001 \
+  -H "Authorization: Basic <base64-credentials>"
+```
+
+### Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates whether the operation was successful
+</ResponseField>
+
+<ResponseField name="message" type="string" required>
+  Human-readable message describing the result
+</ResponseField>
+
+### Example Response
+
+**Success (200)**
+
+```json
+{
+  "success": true,
+  "message": "Propiedad eliminada"
+}
+```
+
+**Unauthorized (401)**
+
+```json
+{
+  "error": "Unauthorized"
+}
+```
+
+### Status Codes
+
+<ResponseField name="200" type="Success">
+  Property deleted successfully
+</ResponseField>
+
+<ResponseField name="401" type="Unauthorized">
+  Authentication required or credentials invalid
+</ResponseField>
+
+<ResponseField name="404" type="Not Found">
+  Property with the specified ID does not exist
+</ResponseField>
+
+## Notes
+
+- This operation is **permanent** and cannot be undone
+- The endpoint will return success (200) even if the property doesn't exist (idempotent operation)
+- Make sure to verify the property ID before deletion to avoid accidental data loss
+- Consider implementing a "soft delete" pattern in production systems where records are marked as deleted rather than physically removed

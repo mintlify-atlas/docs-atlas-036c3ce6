@@ -1,0 +1,99 @@
+---
+title: Get Property
+description: Retrieve a single property by its unique identifier
+---
+
+## GET /api/propiedades/{id}
+
+Retrieve detailed information about a specific property using its unique code. This endpoint is public and does not require authentication.
+
+### Request
+
+<ParamField path="id" type="string" required>
+  The unique 6-character property identifier (e.g., "ZN1001")
+</ParamField>
+
+```bash
+curl https://idforideas-1.jamrdev.com.ar/api/propiedades/ZN1001
+```
+
+### Response
+
+Returns a single property object.
+
+<ResponseField name="codigo_id" type="string" required>
+  Unique 6-character property identifier (e.g., "ZN1001")
+</ResponseField>
+
+<ResponseField name="pais" type="string" required>
+  Country where the property is located (e.g., "Argentina")
+</ResponseField>
+
+<ResponseField name="ciudad" type="string" required>
+  City where the property is located (e.g., "Tigre")
+</ResponseField>
+
+<ResponseField name="direccion" type="string" required>
+  Street address of the property (e.g., "Av. Cazón 123")
+</ResponseField>
+
+<ResponseField name="ambientes" type="number" required>
+  Number of rooms in the property
+</ResponseField>
+
+<ResponseField name="metros_cuadrados" type="number" required>
+  Property size in square meters
+</ResponseField>
+
+<ResponseField name="precio" type="number" required>
+  Property price in local currency
+</ResponseField>
+
+<ResponseField name="tipo_contratacion" type="enum" required>
+  Type of contract. Possible values: `Alquiler` (Rent) or `Venta` (Sale)
+</ResponseField>
+
+<ResponseField name="estado" type="enum" required>
+  Current status of the property. Possible values: `Disponible` (Available), `Reservado` (Reserved), `Alquilado` (Rented), `Vendido` (Sold)
+</ResponseField>
+
+<ResponseField name="descripcion" type="string">
+  Optional description or additional details about the property
+</ResponseField>
+
+### Example Response
+
+**Success (200)**
+
+```json
+{
+  "codigo_id": "ZN1001",
+  "pais": "Argentina",
+  "ciudad": "Tigre",
+  "direccion": "Av. Cazón 123",
+  "ambientes": 3,
+  "metros_cuadrados": 75.5,
+  "precio": 120000,
+  "tipo_contratacion": "Venta",
+  "estado": "Disponible",
+  "descripcion": "Hermosa vista al río"
+}
+```
+
+**Not Found (404)**
+
+```json
+{
+  "error": "Propiedad no encontrada"
+}
+```
+
+### Status Codes
+
+<ResponseField name="200" type="Success">
+  Property found and returned successfully
+</ResponseField>
+
+<ResponseField name="404" type="Not Found">
+  Property with the specified ID does not exist
+</ResponseField>

@@ -1,0 +1,154 @@
+---
+title: Property Schema
+description: Complete schema definition for property objects in the API
+---
+
+## Property Object
+
+The `Propiedad` (Property) object represents a real estate property in the system. It contains all the necessary information about a property listing.
+
+### Schema Definition
+
+The property schema is defined using Zod validation library with OpenAPI integration for automatic documentation generation.
+
+## Fields
+
+### codigo_id
+
+<ParamField path="codigo_id" type="string">
+  **Length**: Exactly 6 characters  
+  **Required**: Optional (auto-generated if not provided)  
+  **Example**: `"ZN1001"`  
+  **Description**: Unique property identifier code. Must be exactly 6 characters if provided. If not provided during creation, the system will automatically generate a unique code using alphanumeric characters (A-Z, 1-9, excluding O, 0, I, L for clarity).
+</ParamField>
+
+### pais
+
+<ParamField path="pais" type="string" required>
+  **Example**: `"Argentina"`  
+  **Description**: Country where the property is located. No specific format restrictions.
+</ParamField>
+
+### ciudad
+
+<ParamField path="ciudad" type="string" required>
+  **Example**: `"Tigre"`  
+  **Description**: City or municipality where the property is located.
+</ParamField>
+
+### direccion
+
+<ParamField path="direccion" type="string" required>
+  **Example**: `"Av. Cazón 123"`  
+  **Description**: Complete street address of the property including street name and number.
+</ParamField>
+
+### ambientes
+
+<ParamField path="ambientes" type="number" required>
+  **Example**: `3`  
+  **Description**: Number of rooms/environments in the property. Typically includes bedrooms, living room, dining room, etc.
+</ParamField>
+
+### metros_cuadrados
+
+<ParamField path="metros_cuadrados" type="number" required>
+  **Example**: `75.5`  
+  **Description**: Total property size in square meters. Can be a decimal value for precise measurements.
+</ParamField>
+
+### precio
+
+<ParamField path="precio" type="number" required>
+  **Example**: `120000`  
+  **Description**: Property price in local currency. For rentals, this typically represents monthly rent. For sales, this is the total purchase price.
+</ParamField>
+
+### tipo_contratacion
+
+<ParamField path="tipo_contratacion" type="enum" required>
+  **Allowed values**: `"Alquiler"` | `"Venta"`  
+  **Example**: `"Venta"`  
+  **Description**: Type of property contract or listing type.
+  
+  - `"Alquiler"`: Property available for rent
+  - `"Venta"`: Property available for sale
+</ParamField>
+
+### estado
+
+<ParamField path="estado" type="enum" required>
+  **Allowed values**: `"Disponible"` | `"Reservado"` | `"Alquilado"` | `"Vendido"`  
+  **Example**: `"Disponible"`  
+  **Description**: Current status of the property in the listing process.
+  
+  - `"Disponible"`: Available for viewing and contracting
+  - `"Reservado"`: Reserved by a potential client
+  - `"Alquilado"`: Currently rented
+  - `"Vendido"`: Sold (no longer available)
+</ParamField>
+
+### descripcion
+
+<ParamField path="descripcion" type="string">
+  **Example**: `"Hermosa vista al río"`  
+  **Description**: Optional additional description or notes about the property. Can include features, amenities, condition, or other relevant information.
+</ParamField>
+
+## Complete Example
+
+```json
+{
+  "codigo_id": "ZN1001",
+  "pais": "Argentina",
+  "ciudad": "Tigre",
+  "direccion": "Av. Cazón 123",
+  "ambientes": 3,
+  "metros_cuadrados": 75.5,
+  "precio": 120000,
+  "tipo_contratacion": "Venta",
+  "estado": "Disponible",
+  "descripcion": "Hermosa vista al río"
+}
+```
+
+## Database Schema
+
+The property data is stored in a D1 SQLite database with the following table structure:
+
+```sql
+CREATE TABLE propiedades (
+  codigo_id TEXT PRIMARY KEY,
+  pais TEXT NOT NULL,
+  ciudad TEXT NOT NULL,
+  direccion TEXT NOT NULL,
+  ambientes INTEGER NOT NULL,
+  metros_cuadrados REAL NOT NULL,
+  precio REAL NOT NULL,
+  tipo_contratacion TEXT NOT NULL,
+  estado TEXT NOT NULL,
+  descripcion TEXT
+);
+```
+
+## Source Code Reference
+
+The schema is defined in the source code at:
+
+```typescript
+// src/db/schema.ts
+import { z } from '@hono/zod-openapi';
+
+export const PropiedadSchema = z.object({
+  codigo_id: z.string().length(6).optional().openapi({ example: 'ZN1001' }),
+  pais: z.string().openapi({ example: 'Argentina' }),
+  ciudad: z.string().openapi({ example: 'Tigre' }),
+  direccion: z.string().openapi({ example: 'Av. Cazón 123' }),
+  ambientes: z.number().openapi({ example: 3 }),
+  metros_cuadrados: z.number().openapi({ example: 75.5 }),
+  precio: z.number().openapi({ example: 120000 }),
+  tipo_contratacion: z.enum(['Alquiler', 'Venta']).openapi({ example: 'Venta' }),
+  estado: z.enum(['Disponible', 'Reservado', 'Alquilado', 'Vendido']).openapi({ example: 'Disponible' }),
+  descripcion: z.string().optional().openapi({ example: 'Hermosa vista al río' }),
+});
+```

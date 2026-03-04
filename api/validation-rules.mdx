@@ -1,0 +1,285 @@
+---
+title: Validation Rules
+description: Validation rules and constraints for API requests
+---
+
+## Overview
+
+The API uses [Zod](https://zod.dev/) for runtime validation of all request data. Zod provides type-safe validation with detailed error messages when data doesn't match the expected schema.
+
+## Property Validation Rules
+
+All property data is validated against the `PropiedadSchema` defined in the source code.
+
+### String Fields
+
+#### codigo_id
+
+- **Type**: String
+- **Constraint**: Must be exactly 6 characters long
+- **Required**: No (optional, auto-generated if not provided)
+- **Validation**: `z.string().length(6).optional()`
+
+```json
+// Valid
+"codigo_id": "ZN1001"
+"codigo_id": "ABC123"
+
+// Invalid
+"codigo_id": "ABC"      // Too short
+"codigo_id": "ABCD1234" // Too long
+```
+
+#### pais, ciudad, direccion
+
+- **Type**: String
+- **Constraint**: No specific length restrictions
+- **Required**: Yes
+- **Validation**: `z.string()`
+
+```json
+// Valid - any non-empty string
+"pais": "Argentina"
+"ciudad": "Tigre"
+"direccion": "Av. Cazón 123"
+
+// Invalid
+"pais": ""    // Empty string not allowed
+"pais": null  // Null not allowed
+```
+
+#### descripcion
+
+- **Type**: String
+- **Constraint**: No specific length restrictions
+- **Required**: No (optional)
+- **Validation**: `z.string().optional()`
+
+```json
+// Valid
+"descripcion": "Hermosa vista al río"
+"descripcion": ""  // Empty string allowed
+// Field can be omitted entirely
+```
+
+### Number Fields
+
+#### ambientes
+
+- **Type**: Number (integer)
+- **Constraint**: Must be a valid number
+- **Required**: Yes
+- **Validation**: `z.number()`
+
+```json
+// Valid
+"ambientes": 3
+"ambientes": 0
+"ambientes": 100
+
+// Invalid
+"ambientes": "3"    // String not allowed
+"ambientes": 3.5    // Decimal allowed by Zod but semantically should be integer
+"ambientes": null   // Null not allowed
+```
+
+#### metros_cuadrados
+
+- **Type**: Number (decimal allowed)
+- **Constraint**: Must be a valid number
+- **Required**: Yes
+- **Validation**: `z.number()`
+
+```json
+// Valid
+"metros_cuadrados": 75.5
+"metros_cuadrados": 100
+"metros_cuadrados": 150.75
+
+// Invalid
+"metros_cuadrados": "75.5"  // String not allowed
+"metros_cuadrados": null    // Null not allowed
+```
+
+#### precio
+
+- **Type**: Number (decimal allowed)
+- **Constraint**: Must be a valid number
+- **Required**: Yes
+- **Validation**: `z.number()`
+
+```json
+// Valid
+"precio": 120000
+"precio": 99999.99
+"precio": 0
+
+// Invalid
+"precio": "120000"  // String not allowed
+"precio": null      // Null not allowed
+```
+
+### Enum Fields
+
+#### tipo_contratacion
+
+- **Type**: Enum
+- **Allowed values**: `"Alquiler"` or `"Venta"` (case-sensitive)
+- **Required**: Yes
+- **Validation**: `z.enum(['Alquiler', 'Venta'])`
+
+```json
+// Valid
+"tipo_contratacion": "Alquiler"
+"tipo_contratacion": "Venta"
+
+// Invalid
+"tipo_contratacion": "alquiler"  // Case-sensitive, must be capitalized
+"tipo_contratacion": "Compra"    // Not in allowed values
+"tipo_contratacion": "venta"     // Case-sensitive
+"tipo_contratacion": null        // Null not allowed
+```
+
+#### estado
+
+- **Type**: Enum
+- **Allowed values**: `"Disponible"`, `"Reservado"`, `"Alquilado"`, or `"Vendido"` (case-sensitive)
+- **Required**: Yes
+- **Validation**: `z.enum(['Disponible', 'Reservado', 'Alquilado', 'Vendido'])`
+
+```json
+// Valid
+"estado": "Disponible"
+"estado": "Reservado"
+"estado": "Alquilado"
+"estado": "Vendido"
+
+// Invalid
+"estado": "disponible"   // Case-sensitive, must be capitalized
+"estado": "Available"    // Must be in Spanish
+"estado": "Pendiente"    // Not in allowed values
+"estado": null           // Null not allowed
+```
+
+## Partial Updates
+
+For PATCH requests (updating properties), all fields become optional using Zod's `.partial()` method:
+
+```typescript
+PropiedadSchema.partial()
+```
+
+This means:
+- You can send any subset of fields
+- Only the fields you send will be validated
+- Fields not included in the request will remain unchanged in the database
+
+```json
+// Valid partial update - only updating price and status
+{
+  "precio": 135000,
+  "estado": "Reservado"
+}
+
+// Valid partial update - updating single field
+{
+  "descripcion": "Updated description"
+}
+```
+
+## Special Validation Rules
+
+### codigo_id on Update
+
+When updating a property via PATCH, the `codigo_id` in the request body (if provided) must match the `id` in the URL path:
+
+```typescript
+// Validation logic from controller:
+if (body.codigo_id && body.codigo_id !== id) {
+  return c.json({ 
+    success: false, 
+    error: "No está permitido modificar el código identificador de la propiedad." 
+  }, 400);
+}
+```
+
+```bash
+# Invalid - codigo_id doesn't match URL
+curl -X PATCH https://idforideas-1.jamrdev.com.ar/api/propiedades/ZN1001 \
+  -d '{"codigo_id": "ZN2000"}'
+# Error: "No está permitido modificar el código identificador de la propiedad."
+```
+
+### Unique codigo_id
+
+When creating a property with a custom `codigo_id`, it must be unique:
+
+```typescript
+// Validation logic from controller:
+if (body.codigo_id) {
+  return c.json({ 
+    success: false, 
+    error: `El código ${body.codigo_id} ya existe.` 
+  }, 409);
+}
+```
+
+## Error Response Format
+
+When validation fails, the API returns a structured error response:
+
+```json
+{
+  "success": false,
+  "error": "Validation error message"
+}
+```
+
+Common validation error examples:
+
+```json
+// Missing required field
+{
+  "success": false,
+  "error": "Required field 'pais' is missing"
+}
+
+// Invalid enum value
+{
+  "success": false,
+  "error": "Invalid enum value. Expected 'Alquiler' | 'Venta', received 'Compra'"
+}
+
+// Wrong type
+{
+  "success": false,
+  "error": "Expected number, received string"
+}
+
+// Length constraint violation
+{
+  "success": false,
+  "error": "String must contain exactly 6 character(s)"
+}
+```
+
+## Source Code Reference
+
+Validation is implemented using Zod in `src/db/schema.ts:3`:
+
+```typescript
+import { z } from '@hono/zod-openapi';
+
+export const PropiedadSchema = z.object({
+  codigo_id: z.string().length(6).optional().openapi({ example: 'ZN1001' }),
+  pais: z.string().openapi({ example: 'Argentina' }),
+  ciudad: z.string().openapi({ example: 'Tigre' }),
+  direccion: z.string().openapi({ example: 'Av. Cazón 123' }),
+  ambientes: z.number().openapi({ example: 3 }),
+  metros_cuadrados: z.number().openapi({ example: 75.5 }),
+  precio: z.number().openapi({ example: 120000 }),
+  tipo_contratacion: z.enum(['Alquiler', 'Venta']).openapi({ example: 'Venta' }),
+  estado: z.enum(['Disponible', 'Reservado', 'Alquilado', 'Vendido']).openapi({ example: 'Disponible' }),
+  descripcion: z.string().optional().openapi({ example: 'Hermosa vista al río' }),
+});
+```

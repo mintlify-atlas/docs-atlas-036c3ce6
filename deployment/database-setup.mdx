@@ -1,0 +1,470 @@
+---
+title: Database setup
+description: Set up and manage the Cloudflare D1 database for the API
+---
+
+# Database Setup
+
+The Sistema de Gestión de Propiedades API uses Cloudflare D1, a serverless SQLite database that runs on Cloudflare's edge network.
+
+## What is D1?
+
+Cloudflare D1 is a distributed SQLite database:
+- **Serverless** - No servers to manage
+- **Global** - Replicated to Cloudflare's edge network
+- **SQL** - Full SQLite compatibility
+- **Integrated** - Native Workers integration
+
+## Database Schema
+
+The database has a single `propiedades` table:
+
+```sql
+CREATE TABLE propiedades (
+  codigo_id VARCHAR(6) PRIMARY KEY,
+  pais VARCHAR(100),
+  ciudad VARCHAR(100),
+  direccion VARCHAR(255),
+  ambientes INTEGER,
+  metros_cuadrados DECIMAL(10,2),
+  precio DECIMAL(15,2),
+  tipo_contratacion TEXT CHECK(tipo_contratacion IN ('Alquiler', 'Venta')),
+  estado TEXT CHECK(estado IN ('Disponible', 'Reservado', 'Alquilado', 'Vendido')),
+  descripcion TEXT,
+  fecha_publicacion DATE DEFAULT CURRENT_DATE
+);
+```
+
+**Source:** `Backend/schema.sql`
+
+### Table Structure
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| codigo_id | VARCHAR(6) | PRIMARY KEY | Unique property identifier |
+| pais | VARCHAR(100) | | Country |
+| ciudad | VARCHAR(100) | | City |
+| direccion | VARCHAR(255) | | Street address |
+| ambientes | INTEGER | | Number of rooms |
+| metros_cuadrados | DECIMAL(10,2) | | Square meters |
+| precio | DECIMAL(15,2) | | Price |
+| tipo_contratacion | TEXT | CHECK constraint | "Alquiler" or "Venta" |
+| estado | TEXT | CHECK constraint | Property status |
+| descripcion | TEXT | | Optional description |
+| fecha_publicacion | DATE | DEFAULT CURRENT_DATE | Publication date |
+
+### Constraints
+
+- **PRIMARY KEY:** `codigo_id` ensures each property has a unique identifier
+- **CHECK constraints:** Enforce valid enum values for `tipo_contratacion` and `estado`
+- **DEFAULT:** `fecha_publicacion` automatically set to current date
+
+## Creating the Database
+
+<Steps>
+  <Step title="Create D1 database">
+    ```bash
+    wrangler d1 create propiedades-db
+    ```
+    
+    **Output:**
+    ```
+    ✅ Successfully created DB 'propiedades-db'
+    
+    [[d1_databases]]
+    binding = "DB"
+    database_name = "propiedades-db"
+    database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+    ```
+    
+    Copy the `database_id` for the next step.
+  </Step>
+  <Step title="Update wrangler.toml">
+    Add the database configuration:
+    
+    ```toml
+    [[d1_databases]]
+    binding = "DB"
+    database_name = "propiedades-db"
+    database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+    ```
+  </Step>
+  <Step title="Run schema migration">
+    ```bash
+    wrangler d1 execute propiedades-db --file=./schema.sql
+    ```
+    
+    This creates the `propiedades` table.
+  </Step>
+  <Step title="Verify table creation">
+    ```bash
+    wrangler d1 execute propiedades-db --command="SELECT name FROM sqlite_master WHERE type='table'"
+    ```
+    
+    Should output: `propiedades`
+  </Step>
+</Steps>
+
+## Database Operations
+
+### Query the Database
+
+```bash
+# List all properties
+wrangler d1 execute propiedades-db --command="SELECT * FROM propiedades"
+
+# Count properties
+wrangler d1 execute propiedades-db --command="SELECT COUNT(*) FROM propiedades"
+
+# Get specific property
+wrangler d1 execute propiedades-db --command="SELECT * FROM propiedades WHERE codigo_id='ZN1001'"
+```
+
+### Insert Sample Data
+
+Create a file `sample-data.sql`:
+
+```sql
+INSERT INTO propiedades (
+  codigo_id, pais, ciudad, direccion, ambientes,
+  metros_cuadrados, precio, tipo_contratacion, estado, descripcion
+) VALUES (
+  'ZN1001',
+  'Argentina',
+  'Tigre',
+  'Av. Cazón 123',
+  3,
+  75.5,
+  120000,
+  'Venta',
+  'Disponible',
+  'Hermosa vista al río'
+),
+(
+  'BA4567',
+  'Argentina',
+  'Buenos Aires',
+  'Av. Corrientes 1234',
+  2,
+  65,
+  95000,
+  'Alquiler',
+  'Disponible',
+  'Departamento luminoso en el centro'
+);
+```
+
+Execute it:
+
+```bash
+wrangler d1 execute propiedades-db --file=./sample-data.sql
+```
+
+### Update Records
+
+```bash
+# Update property status
+wrangler d1 execute propiedades-db --command="
+  UPDATE propiedades 
+  SET estado='Vendido' 
+  WHERE codigo_id='ZN1001'
+"
+
+# Update price
+wrangler d1 execute propiedades-db --command="
+  UPDATE propiedades 
+  SET precio=125000 
+  WHERE codigo_id='ZN1001'
+"
+```
+
+### Delete Records
+
+```bash
+# Delete specific property
+wrangler d1 execute propiedades-db --command="
+  DELETE FROM propiedades 
+  WHERE codigo_id='ZN1001'
+"
+
+# Clear all data (careful!)
+wrangler d1 execute propiedades-db --command="DELETE FROM propiedades"
+```
+
+## Local vs Production
+
+### Local Development Database
+
+When running `wrangler dev`, a local SQLite database is used:
+- Located in `.wrangler/state/v3/d1/`
+- Independent from production
+- Persists between dev server restarts
+
+### Production Database
+
+The production D1 database:
+- Globally distributed
+- Persistent across deployments
+- Accessed via Cloudflare's network
+
+<Warning>
+Changes to the local dev database don't affect production. Always run migrations in both environments.
+</Warning>
+
+## Database Migrations
+
+### Running Migrations
+
+<Tabs>
+  <Tab title="Local">
+    ```bash
+    wrangler d1 execute propiedades-db --local --file=./schema.sql
+    ```
+  </Tab>
+  <Tab title="Production">
+    ```bash
+    wrangler d1 execute propiedades-db --file=./schema.sql
+    ```
+  </Tab>
+</Tabs>
+
+### Migration Workflow
+
+<Steps>
+  <Step title="Create migration file">
+    Create `migrations/001_add_column.sql`:
+    ```sql
+    ALTER TABLE propiedades ADD COLUMN nueva_columna TEXT;
+    ```
+  </Step>
+  <Step title="Test locally">
+    ```bash
+    wrangler d1 execute propiedades-db --local --file=./migrations/001_add_column.sql
+    ```
+  </Step>
+  <Step title="Verify locally">
+    ```bash
+    wrangler dev
+    # Test the API
+    ```
+  </Step>
+  <Step title="Apply to production">
+    ```bash
+    wrangler d1 execute propiedades-db --file=./migrations/001_add_column.sql
+    ```
+  </Step>
+</Steps>
+
+## Backup and Restore
+
+### Export Database
+
+```bash
+# Export to SQL file
+wrangler d1 execute propiedades-db --command=".dump" > backup.sql
+
+# Export specific table
+wrangler d1 execute propiedades-db --command=".dump propiedades" > propiedades-backup.sql
+```
+
+### Import Database
+
+```bash
+wrangler d1 execute propiedades-db --file=./backup.sql
+```
+
+## Database Inspection
+
+### View Schema
+
+```bash
+# Show table schema
+wrangler d1 execute propiedades-db --command=".schema propiedades"
+
+# List all tables
+wrangler d1 execute propiedades-db --command="
+  SELECT name FROM sqlite_master WHERE type='table'
+"
+```
+
+### Database Statistics
+
+```bash
+# Count records
+wrangler d1 execute propiedades-db --command="
+  SELECT COUNT(*) as total FROM propiedades
+"
+
+# Properties by status
+wrangler d1 execute propiedades-db --command="
+  SELECT estado, COUNT(*) as count 
+  FROM propiedades 
+  GROUP BY estado
+"
+
+# Properties by city
+wrangler d1 execute propiedades-db --command="
+  SELECT ciudad, COUNT(*) as count 
+  FROM propiedades 
+  GROUP BY ciudad
+"
+```
+
+## Programmatic Access
+
+The API accesses D1 through the Workers binding:
+
+```typescript
+// From Backend/src/controllers/propiedades.controller.ts
+
+// List all properties
+export const getAllPropiedades = async (c: Context) => {
+  const { results } = await c.env.DB.prepare(
+    'SELECT * FROM propiedades'
+  ).all();
+  return c.json(results);
+};
+
+// Get one property
+export const getPropiedadById = async (c: Context) => {
+  const id = c.req.param('id');
+  const propiedad = await c.env.DB.prepare(
+    'SELECT * FROM propiedades WHERE codigo_id = ?'
+  ).bind(id).first();
+  
+  if (!propiedad) {
+    return c.json({ error: 'Propiedad no encontrada' }, 404);
+  }
+  return c.json(propiedad);
+};
+
+// Insert property
+await c.env.DB.prepare(`
+  INSERT INTO propiedades (...) VALUES (...)
+`).bind(...values).run();
+
+// Update property
+await c.env.DB.prepare(`
+  UPDATE propiedades SET ... WHERE codigo_id = ?
+`).bind(...values).run();
+
+// Delete property
+await c.env.DB.prepare(
+  'DELETE FROM propiedades WHERE codigo_id = ?'
+).bind(id).run();
+```
+
+## Monitoring
+
+### View Database Metrics
+
+In the [Cloudflare Dashboard](https://dash.cloudflare.com):
+1. Navigate to **Workers & Pages**
+2. Select **D1**
+3. Choose your database
+
+View:
+- Query count
+- Storage size
+- Read/write operations
+
+### Query Logs
+
+```bash
+# Tail Worker logs to see database queries
+wrangler tail
+```
+
+## Limits
+
+Cloudflare D1 limits (as of 2024):
+
+| Resource | Free Plan | Paid Plan |
+|----------|-----------|------------|
+| Databases | 10 | Unlimited |
+| Storage per DB | 500 MB | 10 GB |
+| Reads per day | 5 million | Unlimited |
+| Writes per day | 100,000 | Unlimited |
+
+See [Cloudflare D1 Pricing](https://developers.cloudflare.com/d1/platform/pricing/) for details.
+
+## Best Practices
+
+<Steps>
+  <Step title="Use prepared statements">
+    Always use `.bind()` for user input to prevent SQL injection:
+    ```typescript
+    // Good
+    await db.prepare('SELECT * FROM propiedades WHERE codigo_id = ?')
+      .bind(userInput).first();
+    
+    // Bad - vulnerable to SQL injection
+    await db.prepare(`SELECT * FROM propiedades WHERE codigo_id = '${userInput}'`).first();
+    ```
+  </Step>
+  <Step title="Test migrations locally">
+    Always test schema changes with `--local` before applying to production.
+  </Step>
+  <Step title="Regular backups">
+    Export your database regularly:
+    ```bash
+    wrangler d1 execute propiedades-db --command=".dump" > backup-$(date +%Y%m%d).sql
+    ```
+  </Step>
+  <Step title="Monitor query performance">
+    Check slow queries in Wrangler logs and add indexes if needed.
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+<Accordion title="Table doesn't exist">
+  **Error:** `no such table: propiedades`
+  
+  **Solution:**
+  ```bash
+  wrangler d1 execute propiedades-db --file=./schema.sql
+  ```
+</Accordion>
+
+<Accordion title="Binding not found">
+  **Error:** `DB is not defined`
+  
+  **Solution:** Check `wrangler.toml` has the D1 binding:
+  ```toml
+  [[d1_databases]]
+  binding = "DB"
+  database_name = "propiedades-db"
+  database_id = "your-id"
+  ```
+</Accordion>
+
+<Accordion title="Local and production out of sync">
+  **Problem:** Different data in dev vs production
+  
+  **Solution:** Export production, import to local:
+  ```bash
+  # Export from production
+  wrangler d1 execute propiedades-db --command=".dump" > prod-data.sql
+  
+  # Import to local
+  wrangler d1 execute propiedades-db --local --file=./prod-data.sql
+  ```
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Environment Variables" icon="gear" href="/deployment/environment-variables">
+    Configure authentication credentials
+  </Card>
+  <Card title="Cloudflare Workers" icon="cloud" href="/deployment/cloudflare-workers">
+    Deploy the complete application
+  </Card>
+  <Card title="Property Schema" icon="table" href="/api/property-schema">
+    Detailed schema documentation
+  </Card>
+  <Card title="Creating Properties" icon="plus" href="/guides/creating-properties">
+    Start adding properties to your database
+  </Card>
+</CardGroup>

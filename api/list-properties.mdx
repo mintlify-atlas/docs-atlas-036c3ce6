@@ -1,0 +1,101 @@
+---
+title: List Properties
+description: Retrieve a list of all properties in the system
+---
+
+## GET /api/propiedades
+
+Retrieve a list of all properties in the database. This endpoint is public and does not require authentication.
+
+### Request
+
+No parameters required.
+
+```bash
+curl https://idforideas-1.jamrdev.com.ar/api/propiedades
+```
+
+### Response
+
+Returns an array of property objects.
+
+<ResponseField name="properties" type="array" required>
+  Array of property objects
+  
+  <ResponseField name="codigo_id" type="string" required>
+    Unique 6-character property identifier (e.g., "ZN1001")
+  </ResponseField>
+  
+  <ResponseField name="pais" type="string" required>
+    Country where the property is located (e.g., "Argentina")
+  </ResponseField>
+  
+  <ResponseField name="ciudad" type="string" required>
+    City where the property is located (e.g., "Tigre")
+  </ResponseField>
+  
+  <ResponseField name="direccion" type="string" required>
+    Street address of the property (e.g., "Av. Cazón 123")
+  </ResponseField>
+  
+  <ResponseField name="ambientes" type="number" required>
+    Number of rooms in the property
+  </ResponseField>
+  
+  <ResponseField name="metros_cuadrados" type="number" required>
+    Property size in square meters
+  </ResponseField>
+  
+  <ResponseField name="precio" type="number" required>
+    Property price in local currency
+  </ResponseField>
+  
+  <ResponseField name="tipo_contratacion" type="enum" required>
+    Type of contract. Possible values: `Alquiler` (Rent) or `Venta` (Sale)
+  </ResponseField>
+  
+  <ResponseField name="estado" type="enum" required>
+    Current status of the property. Possible values: `Disponible` (Available), `Reservado` (Reserved), `Alquilado` (Rented), `Vendido` (Sold)
+  </ResponseField>
+  
+  <ResponseField name="descripcion" type="string">
+    Optional description or additional details about the property
+  </ResponseField>
+</ResponseField>
+
+### Example Response
+
+```json
+[
+  {
+    "codigo_id": "ZN1001",
+    "pais": "Argentina",
+    "ciudad": "Tigre",
+    "direccion": "Av. Cazón 123",
+    "ambientes": 3,
+    "metros_cuadrados": 75.5,
+    "precio": 120000,
+    "tipo_contratacion": "Venta",
+    "estado": "Disponible",
+    "descripcion": "Hermosa vista al río"
+  },
+  {
+    "codigo_id": "BA2045",
+    "pais": "Argentina",
+    "ciudad": "Buenos Aires",
+    "direccion": "Av. Santa Fe 2500",
+    "ambientes": 2,
+    "metros_cuadrados": 55.0,
+    "precio": 85000,
+    "tipo_contratacion": "Alquiler",
+    "estado": "Disponible",
+    "descripcion": "Departamento moderno en Palermo"
+  }
+]
+```
+
+### Status Codes
+
+<ResponseField name="200" type="Success">
+  Returns an array of all properties in the system
+</ResponseField>

@@ -1,0 +1,567 @@
+---
+title: Querying properties
+description: Learn how to retrieve property listings using the GET endpoints
+---
+
+# Querying Properties
+
+Retrieve property information using the public GET endpoints. These endpoints don't require authentication and return property data in JSON format.
+
+## List All Properties
+
+Retrieve all properties in the system:
+
+```
+GET https://idforideas-1.jamrdev.com.ar/api/propiedades
+```
+
+<Info>
+This endpoint is **public** and doesn't require authentication.
+</Info>
+
+### Request
+
+<CodeGroup>
+```bash curl
+curl https://idforideas-1.jamrdev.com.ar/api/propiedades
+```
+
+```javascript JavaScript
+const response = await fetch(
+  'https://idforideas-1.jamrdev.com.ar/api/propiedades'
+);
+const properties = await response.json();
+console.log(properties);
+```
+
+```python Python
+import requests
+
+response = requests.get(
+    'https://idforideas-1.jamrdev.com.ar/api/propiedades'
+)
+properties = response.json()
+print(properties)
+```
+</CodeGroup>
+
+### Response
+
+**Status Code:** `200 OK`
+
+Returns an array of property objects:
+
+```json
+[
+  {
+    "codigo_id": "ZN1001",
+    "pais": "Argentina",
+    "ciudad": "Tigre",
+    "direccion": "Av. Cazón 123",
+    "ambientes": 3,
+    "metros_cuadrados": 75.5,
+    "precio": 120000,
+    "tipo_contratacion": "Venta",
+    "estado": "Disponible",
+    "descripcion": "Hermosa vista al río",
+    "fecha_publicacion": "2024-03-04"
+  },
+  {
+    "codigo_id": "BA4567",
+    "pais": "Argentina",
+    "ciudad": "Buenos Aires",
+    "direccion": "Av. Corrientes 1234",
+    "ambientes": 2,
+    "metros_cuadrados": 65,
+    "precio": 95000,
+    "tipo_contratacion": "Alquiler",
+    "estado": "Disponible",
+    "descripcion": "Departamento luminoso en el centro",
+    "fecha_publicacion": "2024-03-04"
+  }
+]
+```
+
+<Note>
+If no properties exist, the endpoint returns an empty array: `[]`
+</Note>
+
+## Get Single Property
+
+Retrieve a specific property by its `codigo_id`:
+
+```
+GET https://idforideas-1.jamrdev.com.ar/api/propiedades/{id}
+```
+
+### Request
+
+<CodeGroup>
+```bash curl
+curl https://idforideas-1.jamrdev.com.ar/api/propiedades/ZN1001
+```
+
+```javascript JavaScript
+const propertyId = 'ZN1001';
+const response = await fetch(
+  `https://idforideas-1.jamrdev.com.ar/api/propiedades/${propertyId}`
+);
+
+if (response.ok) {
+  const property = await response.json();
+  console.log(property);
+} else if (response.status === 404) {
+  console.log('Property not found');
+}
+```
+
+```python Python
+import requests
+
+property_id = 'ZN1001'
+response = requests.get(
+    f'https://idforideas-1.jamrdev.com.ar/api/propiedades/{property_id}'
+)
+
+if response.status_code == 200:
+    property_data = response.json()
+    print(property_data)
+elif response.status_code == 404:
+    print('Property not found')
+```
+</CodeGroup>
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "codigo_id": "ZN1001",
+  "pais": "Argentina",
+  "ciudad": "Tigre",
+  "direccion": "Av. Cazón 123",
+  "ambientes": 3,
+  "metros_cuadrados": 75.5,
+  "precio": 120000,
+  "tipo_contratacion": "Venta",
+  "estado": "Disponible",
+  "descripcion": "Hermosa vista al río",
+  "fecha_publicacion": "2024-03-04"
+}
+```
+
+### Not Found Response
+
+**Status Code:** `404 Not Found`
+
+```json
+{
+  "error": "Propiedad no encontrada"
+}
+```
+
+## Property Object Fields
+
+Each property object contains:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| codigo_id | string | Unique 6-character property identifier |
+| pais | string | Country |
+| ciudad | string | City |
+| direccion | string | Street address |
+| ambientes | number | Number of rooms |
+| metros_cuadrados | number | Square meters (can be decimal) |
+| precio | number | Price (can be decimal) |
+| tipo_contratacion | string | "Alquiler" (Rental) or "Venta" (Sale) |
+| estado | string | "Disponible", "Reservado", "Alquilado", or "Vendido" |
+| descripcion | string | Property description (may be empty) |
+| fecha_publicacion | string | Publication date (ISO 8601 format) |
+
+## Client-Side Filtering
+
+Since the API returns all properties in a single request, you can filter client-side:
+
+### Filter by City
+
+```javascript
+const response = await fetch(
+  'https://idforideas-1.jamrdev.com.ar/api/propiedades'
+);
+const allProperties = await response.json();
+
+// Filter for Buenos Aires
+const buenosAiresProperties = allProperties.filter(
+  prop => prop.ciudad === 'Buenos Aires'
+);
+
+console.log(`Found ${buenosAiresProperties.length} properties in Buenos Aires`);
+```
+
+### Filter by Status
+
+```javascript
+// Get only available properties
+const availableProperties = allProperties.filter(
+  prop => prop.estado === 'Disponible'
+);
+
+// Get sold properties
+const soldProperties = allProperties.filter(
+  prop => prop.estado === 'Vendido'
+);
+```
+
+### Filter by Contract Type
+
+```javascript
+// Get only rentals
+const rentals = allProperties.filter(
+  prop => prop.tipo_contratacion === 'Alquiler'
+);
+
+// Get only sales
+const sales = allProperties.filter(
+  prop => prop.tipo_contratacion === 'Venta'
+);
+```
+
+### Filter by Price Range
+
+```javascript
+// Properties between $80,000 and $150,000
+const inPriceRange = allProperties.filter(
+  prop => prop.precio >= 80000 && prop.precio <= 150000
+);
+
+// Properties under $100,000
+const affordable = allProperties.filter(
+  prop => prop.precio < 100000
+);
+```
+
+### Filter by Number of Rooms
+
+```javascript
+// 3+ bedroom properties
+const largeProperties = allProperties.filter(
+  prop => prop.ambientes >= 3
+);
+```
+
+### Combine Multiple Filters
+
+```javascript
+// Available rentals in Buenos Aires with 2+ rooms under $120,000
+const filtered = allProperties.filter(prop => 
+  prop.estado === 'Disponible' &&
+  prop.tipo_contratacion === 'Alquiler' &&
+  prop.ciudad === 'Buenos Aires' &&
+  prop.ambientes >= 2 &&
+  prop.precio < 120000
+);
+
+console.log(`Found ${filtered.length} matching properties`);
+```
+
+## Sorting
+
+### Sort by Price
+
+```javascript
+// Sort ascending (cheapest first)
+const sortedAsc = allProperties.sort((a, b) => a.precio - b.precio);
+
+// Sort descending (most expensive first)
+const sortedDesc = allProperties.sort((a, b) => b.precio - a.precio);
+```
+
+### Sort by Size
+
+```javascript
+// Largest first
+const bySize = allProperties.sort((a, b) => 
+  b.metros_cuadrados - a.metros_cuadrados
+);
+```
+
+### Sort by Date
+
+```javascript
+// Newest first
+const byDate = allProperties.sort((a, b) => 
+  new Date(b.fecha_publicacion) - new Date(a.fecha_publicacion)
+);
+```
+
+### Sort by City (Alphabetical)
+
+```javascript
+const byCity = allProperties.sort((a, b) => 
+  a.ciudad.localeCompare(b.ciudad)
+);
+```
+
+## Search
+
+### Search in Description
+
+```javascript
+const searchTerm = 'vista al río';
+const results = allProperties.filter(prop =>
+  prop.descripcion?.toLowerCase().includes(searchTerm.toLowerCase())
+);
+```
+
+### Search Across Multiple Fields
+
+```javascript
+function searchProperties(properties, query) {
+  const lowerQuery = query.toLowerCase();
+  
+  return properties.filter(prop =>
+    prop.ciudad.toLowerCase().includes(lowerQuery) ||
+    prop.direccion.toLowerCase().includes(lowerQuery) ||
+    prop.descripcion?.toLowerCase().includes(lowerQuery) ||
+    prop.codigo_id.toLowerCase().includes(lowerQuery)
+  );
+}
+
+const results = searchProperties(allProperties, 'tigre');
+```
+
+## Pagination
+
+If you need to paginate results client-side:
+
+```javascript
+function paginate(items, page = 1, perPage = 10) {
+  const start = (page - 1) * perPage;
+  const end = start + perPage;
+  
+  return {
+    data: items.slice(start, end),
+    page,
+    perPage,
+    total: items.length,
+    totalPages: Math.ceil(items.length / perPage)
+  };
+}
+
+// Get page 1 (first 10 items)
+const page1 = paginate(allProperties, 1, 10);
+console.log(page1.data);
+
+// Get page 2
+const page2 = paginate(allProperties, 2, 10);
+```
+
+## Complete Example: Property Search
+
+A complete property search implementation:
+
+```javascript
+class PropertySearch {
+  constructor() {
+    this.properties = [];
+    this.baseURL = 'https://idforideas-1.jamrdev.com.ar';
+  }
+
+  async loadProperties() {
+    const response = await fetch(`${this.baseURL}/api/propiedades`);
+    this.properties = await response.json();
+    return this.properties;
+  }
+
+  async getById(id) {
+    const response = await fetch(`${this.baseURL}/api/propiedades/${id}`);
+    if (!response.ok) return null;
+    return response.json();
+  }
+
+  filter(criteria) {
+    return this.properties.filter(prop => {
+      // Filter by city
+      if (criteria.ciudad && prop.ciudad !== criteria.ciudad) {
+        return false;
+      }
+
+      // Filter by status
+      if (criteria.estado && prop.estado !== criteria.estado) {
+        return false;
+      }
+
+      // Filter by contract type
+      if (criteria.tipo && prop.tipo_contratacion !== criteria.tipo) {
+        return false;
+      }
+
+      // Filter by price range
+      if (criteria.minPrecio && prop.precio < criteria.minPrecio) {
+        return false;
+      }
+      if (criteria.maxPrecio && prop.precio > criteria.maxPrecio) {
+        return false;
+      }
+
+      // Filter by minimum rooms
+      if (criteria.minAmbientes && prop.ambientes < criteria.minAmbientes) {
+        return false;
+      }
+
+      // Search in text fields
+      if (criteria.query) {
+        const q = criteria.query.toLowerCase();
+        const searchable = [
+          prop.ciudad,
+          prop.direccion,
+          prop.descripcion || '',
+          prop.codigo_id
+        ].join(' ').toLowerCase();
+        
+        if (!searchable.includes(q)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }
+
+  sort(properties, field = 'precio', order = 'asc') {
+    return properties.sort((a, b) => {
+      const aVal = a[field];
+      const bVal = b[field];
+      
+      if (order === 'asc') {
+        return aVal > bVal ? 1 : -1;
+      } else {
+        return aVal < bVal ? 1 : -1;
+      }
+    });
+  }
+}
+
+// Usage
+const search = new PropertySearch();
+await search.loadProperties();
+
+// Find available rentals in Buenos Aires
+const results = search.filter({
+  ciudad: 'Buenos Aires',
+  tipo: 'Alquiler',
+  estado: 'Disponible',
+  minAmbientes: 2,
+  maxPrecio: 120000
+});
+
+// Sort by price
+const sorted = search.sort(results, 'precio', 'asc');
+console.log(`Found ${sorted.length} properties`);
+```
+
+## Python Example: Property Search
+
+```python
+import requests
+from typing import List, Dict, Any, Optional
+
+class PropertySearch:
+    def __init__(self):
+        self.base_url = 'https://idforideas-1.jamrdev.com.ar'
+        self.properties = []
+    
+    def load_properties(self) -> List[Dict[str, Any]]:
+        """Load all properties from the API"""
+        response = requests.get(f'{self.base_url}/api/propiedades')
+        response.raise_for_status()
+        self.properties = response.json()
+        return self.properties
+    
+    def get_by_id(self, property_id: str) -> Optional[Dict[str, Any]]:
+        """Get a single property by ID"""
+        response = requests.get(
+            f'{self.base_url}/api/propiedades/{property_id}'
+        )
+        if response.status_code == 200:
+            return response.json()
+        return None
+    
+    def filter(self, **criteria) -> List[Dict[str, Any]]:
+        """Filter properties by criteria"""
+        results = self.properties
+        
+        if 'ciudad' in criteria:
+            results = [p for p in results if p['ciudad'] == criteria['ciudad']]
+        
+        if 'estado' in criteria:
+            results = [p for p in results if p['estado'] == criteria['estado']]
+        
+        if 'tipo' in criteria:
+            results = [p for p in results 
+                      if p['tipo_contratacion'] == criteria['tipo']]
+        
+        if 'min_precio' in criteria:
+            results = [p for p in results 
+                      if p['precio'] >= criteria['min_precio']]
+        
+        if 'max_precio' in criteria:
+            results = [p for p in results 
+                      if p['precio'] <= criteria['max_precio']]
+        
+        if 'min_ambientes' in criteria:
+            results = [p for p in results 
+                      if p['ambientes'] >= criteria['min_ambientes']]
+        
+        return results
+
+# Usage
+search = PropertySearch()
+search.load_properties()
+
+# Find available properties in Tigre
+results = search.filter(
+    ciudad='Tigre',
+    estado='Disponible',
+    min_ambientes=2
+)
+
+print(f"Found {len(results)} properties")
+for prop in results:
+    print(f"{prop['codigo_id']}: {prop['direccion']} - ${prop['precio']}")
+```
+
+## Best Practices
+
+<Steps>
+  <Step title="Cache the results">
+    Load all properties once and filter/sort client-side to minimize API calls.
+  </Step>
+  <Step title="Handle empty results">
+    Always check if the array is empty before processing results.
+  </Step>
+  <Step title="Implement error handling">
+    Handle network errors and non-200 responses gracefully.
+  </Step>
+  <Step title="Use case-insensitive search">
+    Convert to lowercase when searching to improve user experience.
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Creating Properties" icon="plus" href="/guides/creating-properties">
+    Learn how to create new properties
+  </Card>
+  <Card title="Updating Properties" icon="pen" href="/guides/updating-properties">
+    Update existing property information
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/list-properties">
+    Complete API reference for querying
+  </Card>
+  <Card title="Property Schema" icon="table" href="/api/property-schema">
+    Detailed property field documentation
+  </Card>
+</CardGroup>

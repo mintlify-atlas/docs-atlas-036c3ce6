@@ -1,0 +1,423 @@
+---
+title: Cloudflare Workers deployment
+description: Learn how to deploy the API to Cloudflare Workers
+---
+
+# Cloudflare Workers Deployment
+
+The Sistema de Gestión de Propiedades API is built to run on Cloudflare Workers, a serverless platform that runs your code on Cloudflare's global edge network.
+
+## Why Cloudflare Workers?
+
+<CardGroup cols={2}>
+  <Card title="Global Edge Network" icon="globe">
+    Deploy to 300+ data centers worldwide for low latency
+  </Card>
+  <Card title="Zero Cold Starts" icon="bolt">
+    V8 isolates start in milliseconds, not seconds
+  </Card>
+  <Card title="Automatic Scaling" icon="arrows-up-down">
+    Handle traffic spikes without configuration
+  </Card>
+  <Card title="Built-in D1 Database" icon="database">
+    SQLite database at the edge with global replication
+  </Card>
+</CardGroup>
+
+## Prerequisites
+
+Before deploying, you need:
+
+<Steps>
+  <Step title="Cloudflare account">
+    Create a free account at [cloudflare.com](https://cloudflare.com)
+  </Step>
+  <Step title="Node.js installed">
+    Install Node.js 18+ from [nodejs.org](https://nodejs.org)
+  </Step>
+  <Step title="Wrangler CLI">
+    Install Cloudflare's CLI tool:
+    ```bash
+    npm install -g wrangler
+    ```
+  </Step>
+  <Step title="Authenticate Wrangler">
+    Log in to your Cloudflare account:
+    ```bash
+    wrangler login
+    ```
+  </Step>
+</Steps>
+
+## Project Structure
+
+The backend project structure:
+
+```
+Backend/
+├── src/
+│   ├── controllers/
+│   │   └── propiedades.controller.ts
+│   ├── db/
+│   │   └── schema.ts
+│   ├── middlewares/
+│   │   └── auth.ts
+│   ├── routes/
+│   │   ├── auth.ts
+│   │   └── propiedades.ts
+│   └── index.ts
+├── schema.sql
+├── package.json
+├── tsconfig.json
+└── wrangler.toml (you'll create this)
+```
+
+## Dependencies
+
+The project uses these dependencies (from `package.json`):
+
+```json
+{
+  "dependencies": {
+    "@hono/swagger-ui": "^0.5.3",
+    "@hono/zod-openapi": "^1.2.1",
+    "hono": "^4.11.9",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "wrangler": "^4.4.0"
+  }
+}
+```
+
+## Configuration
+
+### Create wrangler.toml
+
+Create a `wrangler.toml` file in your Backend directory:
+
+```toml
+name = "inmobiliaria-propiedades-api"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "propiedades-db"
+database_id = "<your-database-id>"
+
+# Environment variables (for production)
+[vars]
+ADMIN_USER = "<your-admin-username>"
+ADMIN_PASS = "<your-admin-password>"
+```
+
+<Warning>
+Never commit `wrangler.toml` with real credentials. Use Wrangler secrets for sensitive data.
+</Warning>
+
+### TypeScript Configuration
+
+The `tsconfig.json` is already configured:
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ES2020",
+    "moduleResolution": "node",
+    "lib": ["ES2020"],
+    "types": ["@cloudflare/workers-types"]
+  }
+}
+```
+
+## Development
+
+### Local Development Server
+
+Run the development server locally:
+
+```bash
+npm run dev
+```
+
+This starts Wrangler in development mode:
+- Hot reload on file changes
+- Local D1 database
+- Available at `http://localhost:8787`
+
+<Info>
+The dev server uses a local SQLite database. Your production D1 database won't be affected.
+</Info>
+
+### Test Locally
+
+```bash
+# List properties
+curl http://localhost:8787/api/propiedades
+
+# Create a property (with auth)
+curl -u admin:password \
+  -X POST http://localhost:8787/api/propiedades \
+  -H "Content-Type: application/json" \
+  -d '{"ciudad": "Test", ...}'
+
+# View Swagger UI
+open http://localhost:8787/ui
+```
+
+## Database Setup
+
+### Create D1 Database
+
+<Steps>
+  <Step title="Create the database">
+    ```bash
+    wrangler d1 create propiedades-db
+    ```
+    
+    This outputs your database ID. Copy it to `wrangler.toml`.
+  </Step>
+  <Step title="Run migrations">
+    ```bash
+    wrangler d1 execute propiedades-db --file=./schema.sql
+    ```
+    
+    This creates the `propiedades` table.
+  </Step>
+  <Step title="Verify the table">
+    ```bash
+    wrangler d1 execute propiedades-db --command="SELECT * FROM propiedades"
+    ```
+  </Step>
+</Steps>
+
+For detailed database setup, see the [Database Setup guide](/deployment/database-setup).
+
+## Deployment
+
+### Set Environment Variables
+
+Store sensitive credentials as secrets:
+
+```bash
+# Set admin username
+wrangler secret put ADMIN_USER
+# Enter: your-admin-username
+
+# Set admin password
+wrangler secret put ADMIN_PASS
+# Enter: your-admin-password
+```
+
+<Tip>
+Secrets are encrypted and never visible in your code or Wrangler config.
+</Tip>
+
+### Deploy to Production
+
+```bash
+npm run deploy
+```
+
+Or manually:
+
+```bash
+wrangler deploy --minify
+```
+
+This:
+1. Bundles your TypeScript code
+2. Minifies for optimal performance
+3. Uploads to Cloudflare's edge network
+4. Assigns you a `*.workers.dev` subdomain
+
+### Deployment Output
+
+```bash
+⚙️  Building...
+✅ Built successfully
+🚀 Deploying to Cloudflare...
+✅ Deployed to https://inmobiliaria-propiedades-api.yourname.workers.dev
+```
+
+## Custom Domain
+
+To use a custom domain like `idforideas-1.jamrdev.com.ar`:
+
+<Steps>
+  <Step title="Add domain to Cloudflare">
+    Add your domain to Cloudflare and update nameservers.
+  </Step>
+  <Step title="Add route in wrangler.toml">
+    ```toml
+    routes = [
+      { pattern = "idforideas-1.jamrdev.com.ar", zone_name = "jamrdev.com.ar" }
+    ]
+    ```
+  </Step>
+  <Step title="Deploy">
+    ```bash
+    wrangler deploy
+    ```
+  </Step>
+</Steps>
+
+## Monitoring
+
+### View Logs
+
+```bash
+# Tail live logs
+wrangler tail
+
+# Filter by status code
+wrangler tail --status=error
+```
+
+### Check Metrics
+
+View usage metrics in the [Cloudflare Dashboard](https://dash.cloudflare.com):
+- Request count
+- Error rate
+- CPU time
+- Bandwidth
+
+## Scripts
+
+The `package.json` includes these scripts:
+
+```json
+{
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy --minify",
+    "cf-typegen": "wrangler types --env-interface CloudflareBindings"
+  }
+}
+```
+
+- `npm run dev` - Start development server
+- `npm run deploy` - Deploy to production
+- `npm run cf-typegen` - Generate TypeScript types for Cloudflare bindings
+
+## Rollback
+
+If a deployment has issues, rollback to a previous version:
+
+<Steps>
+  <Step title="List deployments">
+    ```bash
+    wrangler deployments list
+    ```
+  </Step>
+  <Step title="Rollback">
+    ```bash
+    wrangler rollback --message "Rolling back due to issue"
+    ```
+  </Step>
+</Steps>
+
+## Environment-Specific Configuration
+
+For staging and production environments:
+
+```toml
+[env.staging]
+name = "inmobiliaria-api-staging"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "propiedades-staging"
+database_id = "<staging-db-id>"
+
+[env.production]
+name = "inmobiliaria-api-production"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "propiedades-production"
+database_id = "<production-db-id>"
+```
+
+Deploy to specific environment:
+
+```bash
+wrangler deploy --env staging
+wrangler deploy --env production
+```
+
+## Troubleshooting
+
+<Accordion title="Build errors">
+  **Error:** `Cannot find module 'hono'`
+  
+  **Solution:**
+  ```bash
+  npm install
+  ```
+</Accordion>
+
+<Accordion title="Database not found">
+  **Error:** `D1_ERROR: no such table: propiedades`
+  
+  **Solution:**
+  ```bash
+  wrangler d1 execute propiedades-db --file=./schema.sql
+  ```
+</Accordion>
+
+<Accordion title="Authentication fails after deployment">
+  **Cause:** Secrets not set
+  
+  **Solution:**
+  ```bash
+  wrangler secret put ADMIN_USER
+  wrangler secret put ADMIN_PASS
+  ```
+</Accordion>
+
+<Accordion title="CORS errors">
+  **Cause:** CORS is already enabled in the code
+  
+  **Check:** Verify `app.use('*', cors())` is in `src/index.ts:9-10`
+</Accordion>
+
+## Best Practices
+
+<Steps>
+  <Step title="Use secrets for credentials">
+    Never hardcode credentials in `wrangler.toml`
+  </Step>
+  <Step title="Enable minification">
+    Always use `--minify` for production deployments
+  </Step>
+  <Step title="Monitor logs">
+    Set up log tailing during initial deployment
+  </Step>
+  <Step title="Test locally first">
+    Always test with `wrangler dev` before deploying
+  </Step>
+  <Step title="Use environment-specific configs">
+    Separate staging and production databases
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Database Setup" icon="database" href="/deployment/database-setup">
+    Detailed D1 database configuration
+  </Card>
+  <Card title="Environment Variables" icon="gear" href="/deployment/environment-variables">
+    Configure secrets and variables
+  </Card>
+  <Card title="API Reference" icon="book" href="/api/overview">
+    Explore the deployed API
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Start using your deployed API
+  </Card>
+</CardGroup>

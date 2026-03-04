@@ -1,0 +1,86 @@
+---
+title: API Overview
+description: Introduction to the Real Estate Property Management API
+---
+
+## Base URL
+
+All API requests should be made to:
+
+```
+https://idforideas-1.jamrdev.com.ar
+```
+
+## API Documentation
+
+This API is built with Hono framework on Cloudflare Workers and uses D1 database for data persistence.
+
+### Interactive Documentation
+
+You can explore and test the API using the interactive Swagger UI:
+
+- **OpenAPI JSON Schema**: `https://idforideas-1.jamrdev.com.ar/doc`
+- **Swagger UI Interface**: `https://idforideas-1.jamrdev.com.ar/ui`
+
+## Authentication
+
+The API uses **HTTP Basic Authentication** for protected endpoints. All endpoints that create, update, or delete properties require authentication.
+
+To authenticate, include the `Authorization` header with your credentials:
+
+```bash
+Authorization: Basic <base64-encoded-credentials>
+```
+
+### Protected Endpoints
+
+The following endpoints require authentication:
+- `POST /api/propiedades` - Create property
+- `PATCH /api/propiedades/{id}` - Update property
+- `DELETE /api/propiedades/{id}` - Delete property
+- `GET /api/auth/verify` - Verify authentication
+
+### Public Endpoints
+
+The following endpoints are publicly accessible:
+- `GET /api/propiedades` - List all properties
+- `GET /api/propiedades/{id}` - Get property by ID
+
+## Response Format
+
+All responses are returned in JSON format with appropriate HTTP status codes.
+
+### Success Response
+
+```json
+{
+  "success": true,
+  "message": "Operation completed successfully",
+  "data": {}
+}
+```
+
+### Error Response
+
+```json
+{
+  "success": false,
+  "error": "Error message description"
+}
+```
+
+## Status Codes
+
+| Code | Description |
+|------|-------------|
+| 200 | Success - Request completed successfully |
+| 201 | Created - Resource created successfully |
+| 400 | Bad Request - Invalid data or validation error |
+| 401 | Unauthorized - Authentication required or failed |
+| 404 | Not Found - Resource not found |
+| 409 | Conflict - Resource already exists |
+| 500 | Internal Server Error - Server error |
+
+## CORS
+
+The API supports Cross-Origin Resource Sharing (CORS) for all endpoints, allowing requests from any origin.

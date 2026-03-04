@@ -1,0 +1,93 @@
+---
+title: Verify Authentication
+description: Verify that your authentication credentials are valid
+---
+
+## GET /api/auth/verify
+
+Verify that your HTTP Basic Auth credentials are valid and return information about the authenticated user. This endpoint requires authentication.
+
+<Warning>
+  This endpoint requires authentication. Include the `Authorization` header with Basic Auth credentials.
+</Warning>
+
+### Request
+
+No parameters required. Simply include valid authentication credentials in the request header.
+
+```bash
+curl https://idforideas-1.jamrdev.com.ar/api/auth/verify \
+  -H "Authorization: Basic <base64-credentials>"
+```
+
+### Response
+
+<ResponseField name="authenticated" type="boolean" required>
+  Always `true` when the request is successful (if false, you would receive a 401 error instead)
+</ResponseField>
+
+<ResponseField name="user" type="string" required>
+  The username of the authenticated admin user
+</ResponseField>
+
+### Example Response
+
+**Success (200)**
+
+```json
+{
+  "authenticated": true,
+  "user": "admin"
+}
+```
+
+**Unauthorized (401)**
+
+```json
+{
+  "error": "Unauthorized"
+}
+```
+
+### Status Codes
+
+<ResponseField name="200" type="Success">
+  Authentication successful, credentials are valid
+</ResponseField>
+
+<ResponseField name="401" type="Unauthorized">
+  Authentication failed or credentials are invalid
+</ResponseField>
+
+## Use Cases
+
+This endpoint is useful for:
+
+- **Testing credentials**: Verify that your API credentials are correct before making other authenticated requests
+- **Session validation**: Check if credentials are still valid in long-running applications
+- **User information**: Retrieve the username associated with the credentials being used
+- **Health checks**: Verify that the authentication system is working correctly
+
+## Authentication Details
+
+The API uses **HTTP Basic Authentication** with credentials stored as environment variables in Cloudflare Workers:
+
+- Username: `ADMIN_USER` (environment variable)
+- Password: `ADMIN_PASS` (environment variable)
+
+To create the Authorization header:
+
+1. Combine username and password with a colon: `username:password`
+2. Encode the string in Base64
+3. Prepend "Basic " to the encoded string
+
+Example in bash:
+
+```bash
+echo -n "username:password" | base64
+# Output: dXNlcm5hbWU6cGFzc3dvcmQ=
+
+# Use in request:
+curl https://idforideas-1.jamrdev.com.ar/api/auth/verify \
+  -H "Authorization: Basic dXNlcm5hbWU6cGFzc3dvcmQ="
+```

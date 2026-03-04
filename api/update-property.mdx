@@ -1,0 +1,143 @@
+---
+title: Update Property
+description: Update an existing property by its unique identifier (requires authentication)
+---
+
+## PATCH /api/propiedades/{id}
+
+Update an existing property's information. This endpoint supports partial updates - you only need to include the fields you want to change. This endpoint requires admin authentication using HTTP Basic Auth.
+
+<Warning>
+  This endpoint requires authentication. Include the `Authorization` header with Basic Auth credentials.
+</Warning>
+
+### Request
+
+<ParamField path="id" type="string" required>
+  The unique 6-character property identifier (e.g., "ZN1001")
+</ParamField>
+
+<ParamField body="pais" type="string">
+  Country where the property is located (e.g., "Argentina")
+</ParamField>
+
+<ParamField body="ciudad" type="string">
+  City where the property is located (e.g., "Tigre")
+</ParamField>
+
+<ParamField body="direccion" type="string">
+  Street address of the property (e.g., "Av. Cazón 123")
+</ParamField>
+
+<ParamField body="ambientes" type="number">
+  Number of rooms in the property
+</ParamField>
+
+<ParamField body="metros_cuadrados" type="number">
+  Property size in square meters
+</ParamField>
+
+<ParamField body="precio" type="number">
+  Property price in local currency
+</ParamField>
+
+<ParamField body="tipo_contratacion" type="enum">
+  Type of contract. Must be one of: `Alquiler` (Rent) or `Venta` (Sale)
+</ParamField>
+
+<ParamField body="estado" type="enum">
+  Current status of the property. Must be one of: `Disponible` (Available), `Reservado` (Reserved), `Alquilado` (Rented), `Vendido` (Sold)
+</ParamField>
+
+<ParamField body="descripcion" type="string">
+  Optional description or additional details about the property
+</ParamField>
+
+### Example Request
+
+```bash
+curl -X PATCH https://idforideas-1.jamrdev.com.ar/api/propiedades/ZN1001 \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Basic <base64-credentials>" \
+  -d '{
+    "precio": 135000,
+    "estado": "Reservado"
+  }'
+```
+
+### Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates whether the operation was successful
+</ResponseField>
+
+<ResponseField name="message" type="string" required>
+  Human-readable message describing the result
+</ResponseField>
+
+<ResponseField name="error" type="string">
+  Error message describing what went wrong (returned on failure)
+</ResponseField>
+
+### Example Response
+
+**Success (200)**
+
+```json
+{
+  "success": true,
+  "message": "Propiedad actualizada"
+}
+```
+
+**Not Found (404)**
+
+```json
+{
+  "success": false,
+  "error": "Propiedad no encontrada"
+}
+```
+
+**Validation Error (400)**
+
+```json
+{
+  "success": false,
+  "error": "Invalid estado value"
+}
+```
+
+**Unauthorized (401)**
+
+```json
+{
+  "error": "Unauthorized"
+}
+```
+
+### Status Codes
+
+<ResponseField name="200" type="Success">
+  Property updated successfully
+</ResponseField>
+
+<ResponseField name="400" type="Bad Request">
+  Invalid data or validation error in request body
+</ResponseField>
+
+<ResponseField name="401" type="Unauthorized">
+  Authentication required or credentials invalid
+</ResponseField>
+
+<ResponseField name="404" type="Not Found">
+  Property with the specified ID does not exist
+</ResponseField>
+
+## Notes
+
+- This is a **partial update** endpoint - you only need to include fields you want to change
+- Fields not included in the request will remain unchanged
+- The `codigo_id` field **cannot be modified** through this endpoint. If you include a `codigo_id` in the request body that differs from the URL parameter, the request will fail with a 400 error
+- All provided fields must pass validation according to the property schema
+- Use the SQL `COALESCE` function to preserve existing values for fields not included in the update
