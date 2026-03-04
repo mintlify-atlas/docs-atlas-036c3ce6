@@ -1,0 +1,99 @@
+{
+  "projectType": "api-service",
+  "projectName": "Sistema de Gestión de Propiedades",
+  "projectDescription": "REST API for real estate property management built with Hono and Cloudflare Workers",
+  "theme": "aspen",
+  "primaryColor": "#2563eb",
+  "lightColor": "#3b82f6",
+  "darkColor": "#1e40af",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Authentication",
+            "pages": [
+              "auth/overview",
+              "auth/basic-auth"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/creating-properties",
+              "guides/updating-properties",
+              "guides/querying-properties",
+              "guides/error-handling"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/cloudflare-workers",
+              "deployment/database-setup",
+              "deployment/environment-variables"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Endpoints",
+            "pages": [
+              "api/overview",
+              "api/list-properties",
+              "api/get-property",
+              "api/create-property",
+              "api/update-property",
+              "api/delete-property"
+            ]
+          },
+          {
+            "group": "Authentication",
+            "pages": [
+              "api/verify-auth"
+            ]
+          },
+          {
+            "group": "Schemas",
+            "pages": [
+              "api/property-schema",
+              "api/validation-rules"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "RESTful API for property management (CRUD operations)",
+    "OpenAPI/Swagger documentation with interactive UI",
+    "Basic authentication for admin operations",
+    "Automatic unique ID generation for properties",
+    "Zod schema validation for type safety",
+    "Cloudflare Workers serverless deployment",
+    "Cloudflare D1 SQLite database",
+    "Property status tracking (Available, Reserved, Rented, Sold)",
+    "Support for rental and sale property types"
+  ],
+  "publicApiSurface": [
+    "GET /api/propiedades - List all properties",
+    "GET /api/propiedades/{id} - Get property by ID",
+    "POST /api/propiedades - Create new property (requires auth)",
+    "PATCH /api/propiedades/{id} - Update property (requires auth)",
+    "DELETE /api/propiedades/{id} - Delete property (requires auth)",
+    "GET /api/auth/verify - Verify admin credentials",
+    "GET /doc - OpenAPI JSON specification",
+    "GET /ui - Swagger UI interface"
+  ]
+}
