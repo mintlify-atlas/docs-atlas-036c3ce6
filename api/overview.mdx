@@ -11,6 +11,17 @@ All API requests should be made to:
 https://idforideas-1.jamrdev.com.ar
 ```
 
+### Root Endpoint
+
+The root endpoint returns a simple text response identifying the API:
+
+```bash
+curl https://idforideas-1.jamrdev.com.ar/
+
+# Response
+API Sistema de Gestión de Propiedades - Inmobiliaria Bonpland Propiedades, ID For Ideas
+```
+
 ## API Documentation
 
 This API is built with Hono framework on Cloudflare Workers and uses D1 database for data persistence.
@@ -50,22 +61,56 @@ The following endpoints are publicly accessible:
 
 All responses are returned in JSON format with appropriate HTTP status codes.
 
-### Success Response
+### Success Responses
+
+Query endpoints (GET) return data directly:
 
 ```json
+// GET /api/propiedades/{id}
 {
-  "success": true,
-  "message": "Operation completed successfully",
-  "data": {}
+  "codigo_id": "ZN1001",
+  "pais": "Argentina",
+  "ciudad": "Tigre",
+  // ... other fields
 }
 ```
 
-### Error Response
+Mutation endpoints (POST, PATCH, DELETE) return structured responses:
 
 ```json
+// POST /api/propiedades
+{
+  "success": true,
+  "message": "Propiedad creada correctamente",
+  "id": "ZN1001"
+}
+
+// PATCH, DELETE
+{
+  "success": true,
+  "message": "Propiedad actualizada"
+}
+```
+
+### Error Responses
+
+Error responses vary by endpoint:
+
+```json
+// 404 on GET endpoints
+{
+  "error": "Propiedad no encontrada"
+}
+
+// Validation errors on mutation endpoints
 {
   "success": false,
   "error": "Error message description"
+}
+
+// Authentication errors
+{
+  "error": "Unauthorized"
 }
 ```
 
@@ -78,8 +123,7 @@ All responses are returned in JSON format with appropriate HTTP status codes.
 | 400 | Bad Request - Invalid data or validation error |
 | 401 | Unauthorized - Authentication required or failed |
 | 404 | Not Found - Resource not found |
-| 409 | Conflict - Resource already exists |
-| 500 | Internal Server Error - Server error |
+| 409 | Conflict - Resource already exists (duplicate codigo_id) |
 
 ## CORS
 
